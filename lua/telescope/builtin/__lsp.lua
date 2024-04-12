@@ -132,11 +132,11 @@ local function list_or_jump(action, title, params, opts)
   vim.lsp.buf_request(opts.bufnr, action, params, function(err, result, ctx, _)
     if err then
       vim.api.nvim_err_writeln("Error when executing " .. action .. " : " .. err.message)
-      return
+      return true
     end
 
     if result == nil then
-      return
+      return true
     end
 
     local flattened_results = {}
@@ -150,7 +150,7 @@ local function list_or_jump(action, title, params, opts)
     local offset_encoding = vim.lsp.get_client_by_id(ctx.client_id).offset_encoding
 
     if vim.tbl_isempty(flattened_results) then
-      return
+      return false
     elseif #flattened_results == 1 and opts.jump_type ~= "never" then
       local current_uri = params.textDocument.uri
       local target_uri = flattened_results[1].uri or flattened_results[1].targetUri
@@ -189,6 +189,7 @@ local function list_or_jump(action, title, params, opts)
         })
         :find()
     end
+    return true
   end)
 end
 
@@ -200,7 +201,12 @@ end
 
 lsp.definitions = function(opts)
   local params = vim.lsp.util.make_position_params(opts.winnr)
-  return list_or_jump("textDocument/definition", "LSP Definitions", params, opts)
+  result = list_or_jump("textDocument/definition", "LSP Definitions", params, opts)
+  if not result then
+    return lsp.references(opts)
+  else
+    return result
+  end
 end
 
 lsp.type_definitions = function(opts)
